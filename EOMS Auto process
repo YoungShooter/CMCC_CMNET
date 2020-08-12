@@ -1,0 +1,284 @@
+# -*- coding: utf-8 -*-
+from selenium import webdriver
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.select import Select
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.chrome.options import Options
+import time,datetime,re
+import openpyxl
+from openpyxl.styles import Border,Side,Font
+import os
+import csv
+ 
+username = 
+password = '
+password_EOMS = 
+
+
+driver = webdriver.Ie(executable_path="C:\Program Files\Internet Explorer\IEDriverServer.exe")
+
+# driver.get("http://10.40.10.68/HumanTaskWeb/share/shareAction.do?parm=myTaskT2GZ&taskFlag=1&task_name=guzclResourceValidate_MainBPEL$guzclResourceValidate_MainBPELTask3&first=1")
+
+# locator = (By.NAME,"j_username") #EOMS username
+# ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+# driver.find_element_by_xpath("//*[@name='j_username']").send_keys(username)
+
+
+# locator = (By.NAME,"j_password") #EOMS password
+# ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+# driver.find_element_by_name("j_password").send_keys(password_EOMS)
+
+# locator = (By.XPATH,'//body/div/div/form/img') #EMOS login
+# ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+# www = driver.find_element_by_xpath('//body/div/div/form/img')
+# driver.execute_script('arguments[0].click();', www)            #Jscript
+# time.sleep(2) 
+
+#driver.get("http://10.40.10.68/HumanTaskWeb/share/shareAction.do?parm=myTaskT2GZ&taskFlag=1&task_name=guzclResourceValidate_MainBPEL$guzclResourceValidate_MainBPELTask3&first=1")
+driver.get("http://10.40.10.68/eoms4/")
+
+driver.maximize_window()
+
+######短消息流程
+locator = (By.NAME,"j_username") #EOMS username
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+driver.find_element_by_xpath("//*[@name='j_username']").send_keys(username)
+
+
+locator = (By.NAME,"j_password") #EOMS password
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+driver.find_element_by_name("j_password").send_keys(password_EOMS)
+locator = (By.ID,"btnSmsCode") #EMOS SMS
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))  
+driver.find_element_by_id("btnSmsCode").send_keys(Keys.SPACE) #f*k,不支持click，搞了一天
+
+time.sleep(15)
+locator = (By.ID,"d1") #submit
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))  
+driver.find_element_by_id("d1").send_keys(Keys.SPACE) #
+
+###进入子frame，折腾了4天啊，ca
+time.sleep(3)
+# driver.switch_to.frame("rootFrame")            
+driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+driver.switch_to.frame("topFrame")
+locator = (By.LINK_TEXT,"流程管理") 
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+driver.find_element_by_link_text("流程管理").send_keys(Keys.ENTER)
+time.sleep(1)
+
+
+driver.switch_to.default_content()
+#driver.switch_to.frame("rootFrame")
+driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+driver.switch_to.frame("leftFrame")
+locator = (By.LINK_TEXT,"个人任务管理") 
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+driver.find_element_by_partial_link_text("个人任务管理").send_keys(Keys.ENTER)
+time.sleep(1)
+
+locator = (By.ID,"sd71") #故障代办任务
+ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+driver.find_element_by_id("sd71").send_keys(Keys.ENTER)
+time.sleep(1)
+
+
+####受理已恢复的工单###############################################
+driver.switch_to.default_content()  
+#driver.switch_to.frame("rootFrame")
+driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+driver.switch_to.frame("mainFrame")
+ItemCount = driver.find_element_by_xpath('//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*').text #-共x条-  每页 条 第x/y页  首页 上页  下页 尾页   跳转
+ItemNum = int (re.findall(r"-共(.+?)条-", ItemCount)[0]) #-共x条 目前取的是所有条目数 应该要找本页几条
+PageNum = int (re.findall(r"第(.+?)/", ItemCount)[0]) #总页数
+PageSum = int (re.findall(r"/(.+?)页", ItemCount)[0]) #当前页数
+lastItem = 0
+#while (lastItem != 1 and PageNum != PageSum): #同时本页最后一条 以及最后一页
+while (lastItem != 1 ): 
+  for i in range(3, ItemNum+3): 
+    lastItem = 0      
+    driver.switch_to.default_content() 
+#    driver.switch_to.frame("rootFrame")
+    driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+    driver.switch_to.frame("mainFrame")   
+    locator = (By.XPATH,'//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*') 
+    ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+    
+    RecoverTime=driver.find_element_by_xpath('//table[@class="table_content"]/tbody/tr['+str(i)+']/td[13]').text #告警恢复时间
+    
+    if (len(RecoverTime) != 0): #告警恢复时间不为空
+        print ('succeed to find PageNo. %s ItemNo. %s'%(PageNum,ItemNum))
+        gjgzgdxxxx=driver.find_element_by_xpath('//table[@class="table_content"]/tbody/tr['+str(i)+']/td/span/a').send_keys(Keys.ENTER)
+       
+        locator = (By.XPATH,'//div[@id="ext-comp-1009"]//input[@value="受理"]') #
+        ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+        shouli=driver.find_element_by_xpath('//div[@id="ext-comp-1009"]//input[@value="受理"]') #受理
+        shouli.send_keys(Keys.ENTER)
+        time.sleep(1)
+       
+        locator = (By.NAME,"dealMode") 
+        ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+        Select(driver.find_element_by_name("dealMode")).select_by_visible_text("处理完成")
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("reasonOneId")).select_by_visible_text("传输")#
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("reasonTwoId")).select_by_visible_text("传输线路")#
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("dealModeId")).select_by_visible_text("线路操作")
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("faultReason")).select_by_visible_text("传输")
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("faultReasonfrac")).select_by_visible_text("传输线路")
+        time.sleep(1)
+
+        driver.find_element_by_xpath('//div[@id="ext-comp-1009"]//textarea[@name="faultReasonInfo"]').send_keys('经核实为传输光缆故障，导致接口down，经传输处理后故障恢复')
+        time.sleep(1)
+
+        driver.find_element_by_xpath('//div[@id="ext-comp-1009"]//textarea[@id="t2commonCol3"]').send_keys('传经核实为传输光缆故障，导致接口down，经传输处理后故障恢复')
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("isImpactBusi")).select_by_visible_text("否")
+        time.sleep(1)
+
+        Select(driver.find_element_by_name("coverRegion")).select_by_visible_text("农村")
+        time.sleep(1)
+        driver.find_element_by_xpath('//div[@id="ext-comp-1009"]//input[@value="提交"]').send_keys(Keys.ENTER)
+        #受理已恢复的工单 Modal dialog present with text: 告警没有清除，不能回复！
+       
+        time.sleep(4)       #重新进入故障页面
+        driver.switch_to.default_content()
+#        driver.switch_to.frame("rootFrame")
+        driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+        driver.switch_to.frame("leftFrame")
+        locator = (By.ID,"sd71") #故障代办任务
+        ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+        driver.find_element_by_id("sd71").send_keys(Keys.ENTER)
+       
+        driver.switch_to.default_content()  #再次寻找已经恢复的工单
+#        driver.switch_to.frame("rootFrame")
+        driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+        driver.switch_to.frame("mainFrame")
+        time.sleep(3)
+        ItemCount = driver.find_element_by_xpath('//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*').text
+        ItemNum = int (re.findall(r"-共(.+?)条-", ItemCount)[0]) #-共x条-  每页 条 第x/y页  首页 上页  下页 尾页   跳转
+        PageNum = int (re.findall(r"第(.+?)/", ItemCount)[0]) #总页数
+        PageSum = int (re.findall(r"/(.+?)页", ItemCount)[0]) #当前页数
+        break
+
+    if (i == ItemNum+2  and PageNum < PageSum): #到第一页的最后一个，需要点击下一页     
+        PageNum += 1
+        lastItem = 1  #最后一条
+        driver.find_element_by_xpath('table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[2]/input[@name="selectPage"]').send_keys('%d'%PageNum)
+        time.sleep(1)
+        driver.find_element_by_xpath('table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[2]/input[@class="button"]').send_keys(Keys.ENTER)
+        time.sleep(1)
+        driver.switch_to.default_content()
+#        driver.switch_to.frame("rootFrame")
+        driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+        driver.switch_to.frame("leftFrame")
+        locator = (By.ID,"sd71") #故障代办任务
+        ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+        driver.find_element_by_id("sd71").send_keys(Keys.ENTER)
+       
+        driver.switch_to.default_content()  
+       #driver.switch_to.frame("rootFrame")
+        driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+        driver.switch_to.frame("mainFrame")
+        ItemCount = driver.find_element_by_xpath('//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*').text
+        ItemNum = int (re.findall("\d", ItemCount)[0]) #-共x条-  每页 条 第y/z页  首页 上页  下页 尾页   跳转
+        PageNum = int (re.findall("\d", ItemCount)[1])
+        PageSum = int (re.findall("\d", ItemCount)[2])
+        break
+
+# #####受理未恢复的工单###############################################
+# driver.switch_to.default_content()  #找到第一个告警未恢复的工单
+# driver.switch_to.frame("rootFrame")
+# driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+# driver.switch_to.frame("mainFrame")
+# ItemCount = driver.find_element_by_xpath('//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*').text
+# ItemNum = int (re.findall(r"-共(.+?)条-", ItemCount)[0]) #-共x条-  每页 条 第x/y页  首页 上页  下页 尾页   跳转
+# PageNum = int (re.findall(r"第(.+?)/", ItemCount)[0]) #总页数
+# PageSum = int (re.findall(r"/(.+?)页", ItemCount)[0]) #当前页数
+# lastItem = 0
+# FaultNo = 0
+# while (lastItem != 1): #同时本页最后一条 以及最后一页
+#     for i in range(3, ItemNum+3): 
+#         lastItem = 0      
+#         driver.switch_to.default_content() 
+#         driver.switch_to.frame("rootFrame")
+#         driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+#         driver.switch_to.frame("mainFrame")   
+#         locator = (By.XPATH,'//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*') 
+#         ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+#         RecoverTime=driver.find_element_by_xpath('//table[@class="table_content"]/tbody/tr['+str(i)+']/td[13]').text #difficult 告警恢复时间
+#         if (len(RecoverTime) == 0): #告警恢复时间不为空
+#             FaultNo +=1 
+#             driver.switch_to.default_content() #进入第一个未恢复告警工单
+#             driver.switch_to.frame("rootFrame")
+#             driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+#             driver.switch_to.frame("mainFrame")
+#             driver.find_element_by_xpath('//table[@class="table_content"]/tbody/tr[3]/td/span/a').send_keys(Keys.ENTER) #点击第一个工单
+#             time.sleep(1)
+#             #进入 告警故障工单详细信息
+#             gjgzgd=driver.find_element_by_xpath('//div[@id="ext-comp-1009"]//span[@class="x-tab-strip-text "]')
+#             gjgzgd = driver.find_element_by_partial_link_text("告警故障工单详细信息")
+#             driver.execute_script('arguments[0].click();', gjgzgd)
+#             gjgzgd.click()
+#             gjgzgd.send_keys(Keys.ENTER)
+#             gjgzgdxxxx=driver.find_element_by_xpath('//div[@id="ext-comp-1009"]/div[@id="ext-gen17"]//table[@class="formTable"]/tbody/tr['+str(i+2)+']/td/table[@class="formTable"]/tbody/tr[2]/td/textarea')
+#             FaultInfo=gjgzgdxxxx.text
+#             print(FaultInfo)
+#             DeviceName = re.findall(r"对象名：(.+?),端口IP", FaultInfo)[0] #设备名称
+#             IP =re.findall(r"设备IP：(.+?),发生时间：", FaultInfo)[0]   #设备IP
+#             FaultDescription = re.findall(r"事件描述：(.+?) 端口名称", FaultInfo)[0] #事件描述
+#             FaultPortName = re.findall(r"端口名称:(.+?) 端口描述:", FaultInfo)[0] #端口名称
+#             FaultPortDesc = re.findall(r"端口描述:(.+?) 端口IP地址:", FaultInfo)[0] #端口描述
+#             OccuredTime = re.findall(r"发生时间:(.+?),事件描述：", FaultInfo)[0] #时间
+#             AlarmActive = ''
+#             AlarmLogbuf = ''
+#             Alarm_file = 'E:\\python\\web\\Alarm.csv'
+#             headers = ['DeviceName','IP','FaultDescription','FaultPortName','FaultPortDesc','OccuredTime','AlarmActive','AlarmLogbuf']
+#             Info = []
+#             NewFault = [DeviceName,IP,FaultDescription,FaultPortName,FaultPortDesc,OccuredTime,AlarmActive,AlarmLogbuf]
+#             Info.append(NewFault)
+#             with open(Alarm_file,'w',newline='')as f:
+#                 f_csv = csv.writer(f)
+#                 f_csv.writerow(headers)
+#                 f_csv.writerows(Info)
+#             f.close()
+# ###########调用SecureCrt#######################################################
+#             os.system('E:\\python\\web\\CRTlogin.bat %s %s' %(username,password))    
+            
+#         if (i == ItemNum+2  and PageNum < PageSum): #到第一页的最后一个，需要点击下一页     
+#             PageNum += 1
+#             lastItem = 1  #最后一条
+#             driver.find_element_by_xpath('table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[2]/input[@name="selectPage"]').send_keys('%d'%PageNum)
+#             time.sleep(1)
+#             driver.find_element_by_xpath('table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[2]/input[@class="button"]').send_keys(Keys.ENTER)
+#             time.sleep(1)
+#             driver.switch_to.default_content()
+#             driver.switch_to.frame("rootFrame")
+#             driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+#             driver.switch_to.frame("leftFrame")
+#             locator = (By.ID,"sd71") #故障代办任务
+#             ele = WebDriverWait(driver,10).until(EC.presence_of_element_located(locator))
+#             driver.find_element_by_id("sd71").send_keys(Keys.ENTER)
+       
+#             driver.switch_to.default_content()  #再次寻找已经恢复的工单
+#             driver.switch_to.frame("rootFrame")
+#             driver.switch_to.frame(driver.find_element_by_tag_name("iframe"))
+#             driver.switch_to.frame("mainFrame")
+#             ItemCount = driver.find_element_by_xpath('//table[@class="table_content_foot"]/tbody/tr[@class="list_labe1"]/td[1]/following::*').text
+#             ItemNum = int (re.findall("\d", ItemCount)[0]) #-共0条-  每页 条 第0/0页  首页 上页  下页 尾页   跳转 #修改ItemNum
+#             PageNum = int (re.findall("\d", ItemCount)[1])
+#             PageSum = int (re.findall("\d", ItemCount)[2])
+#             break
